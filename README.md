@@ -52,6 +52,14 @@ Each point digs 4 km (6,371 km is the center). On the way down you pass through 
 
 Add `TYPESAFE_API_KEY` to `.env` and the admin page's "Classify with Jev" button scores a prompt's top 150 answers on a 0 to 4 rarity scale. That score is blended with the vote-count guess. It only runs from the admin page, never during play.
 
+## Streaks and miners
+
+Stats live in the browser (`localStorage` key `blockbust:stats`): current and best daily streak,
+daily digs, deepest and average dig. Only today's live puzzle counts, so `?date=` replays don't.
+New miner skins unlock at best-streak milestones (3, 7, 14, 30, 60, 100 days) rather than score,
+since a score can be farmed on a second device but a streak means showing up every day. Skins are
+defined in `SKINS` in `web/src/scene.ts`.
+
 ## Admin page
 
 `/admin.html` shows catalog counts and the last 60 days. For each day you can see every prompt's full answer list with its current tier, share, starting guess, Jev score and hits. You can swap a prompt (optionally for a different type), rebuild or clear a day's plays, and add aliases for fair guesses the matcher missed.

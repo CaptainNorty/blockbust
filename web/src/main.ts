@@ -1,7 +1,8 @@
 import { MISS_LABEL, tierById, TIERS, type EntityType, type FinishResponse, type StartQuestionResponse, type TodayResponse } from '@blockbust/shared';
 import { api } from './api.ts';
 import { Autocomplete, type Suggestion } from './autocomplete.ts';
-import { CORE_KM, layerAt, Scene } from './scene.ts';
+import { CORE_KM, layerAt, minerPortrait, Scene, SKINS } from './scene.ts';
+import { isUnlocked, loadStats, localDate, nextSkin, recordDay, setSkinChoice, summarize } from './stats.ts';
 
 /** Every point of score digs this many kilometres. A perfect game (8 x 200) reaches the core. */
 const KM_PER_POINT = 4;
@@ -16,6 +17,9 @@ scene.onDepth = (km, layer) => {
 };
 
 const params = new URLSearchParams(location.search);
+/** Only today's live puzzle counts toward streaks; ?date= replays don't. */
+const live = !params.has('date');
+scene.setSkin(loadStats().skin ?? 'rookie');
 // Dev helper: open the console and try blockbustPeek(2000) to look around at 2,000 km.
 if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
   Object.assign(window, {
@@ -266,6 +270,7 @@ async function showResults() {
   const emoji = r.questions.map((q) => (q.hit ? tierById(q.hit.tier).emoji : '⬛')).join('');
   const pct = r.percentile == null ? 'First digger today' : `Deeper than ${Math.round(r.percentile * 100)}% of today's diggers`;
   const maxCount = Math.max(...r.histogram.map((h) => h.count));
+  if (live) recordDay(today.date, r.score, km);
   const shareText = `BLOCKBUST #${r.number} ⛏️ ${km.toLocaleString()} km\n${emoji}\nReached ${reached}\n${location.origin}`;
 
   panel.className = 'panel results';
@@ -299,7 +304,9 @@ async function showResults() {
           <ul class="answers">${q.topAnswers.map((a) => `<li><span class="dot" style="--c:${tierById(a.tier).color}"></span>${esc(a.label)} <small>${(a.share * 100).toFixed(1)}%</small></li>`).join('')}</ul>
         </details>
       </li>`;
-    }).join('')}</ol></div>`;
+    }).join('')}</ol>
+    <div id="stats"></div></div>`;
+  renderStats();
 
   $('#share').onclick = async () => {
     try {
@@ -316,6 +323,40 @@ async function showResults() {
     } catch {}
     location.reload();
   };
+}
+
+function renderStats() {
+  const stats = loadStats();
+  const sum = summarize(stats, live ? today.date : localDate());
+  const equipped = stats.skin ?? 'rookie';
+  const next = nextSkin(sum);
+  const need = next ? next.streak - sum.current : 0;
+  const tile = (value: string, label: string) => `<div class="stat"><div class="stat-v">${value}</div><div class="stat-l">${label}</div></div>`;
+  $('#stats').innerHTML = `
+    <h3 class="section">YOUR STATS <small>on this device</small></h3>
+    <div class="stats">
+      ${tile(`${sum.current}`, 'Current streak')}
+      ${tile(`${sum.best}`, 'Best streak')}
+      ${tile(`${sum.played}`, 'Daily digs')}
+      ${tile(`${sum.bestKm.toLocaleString()}<small> km</small>`, 'Deepest dig')}
+      ${tile(`${sum.avgKm.toLocaleString()}<small> km</small>`, 'Average dig')}
+    </div>
+    ${live ? '' : `<p class="hint">Replays of other days don't count toward your stats.</p>`}
+    <h3 class="section">MINERS EARNED <small>${SKINS.filter((k) => isUnlocked(k, sum)).length} / ${SKINS.length}</small></h3>
+    <p class="hint">${next ? `Dig every day to earn new miners. <b>${esc(next.name)}</b> unlocks with a ${next.streak}-day streak${need > 0 && sum.current > 0 ? ` (${need} more day${need === 1 ? '' : 's'})` : ''}.` : 'You have every miner. Legendary.'}</p>
+    <div class="skins">${SKINS.map((k) => {
+      const open = isUnlocked(k, sum);
+      return `<button class="skin ${open ? '' : 'locked'} ${k.id === equipped ? 'on' : ''}" data-id="${k.id}" ${open ? '' : 'disabled'}>
+        <img src="${minerPortrait(k, !open)}" alt="" />
+        <span class="skin-name">${open ? esc(k.name) : '???'}</span>
+        <span class="skin-req">${k.id === equipped ? 'Equipped' : open ? 'Tap to equip' : `${k.streak}-day streak`}</span>
+      </button>`;
+    }).join('')}</div>`;
+  $('#stats').querySelectorAll<HTMLButtonElement>('.skin:not(.locked)').forEach((b) => (b.onclick = () => {
+    setSkinChoice(b.dataset.id!);
+    scene.setSkin(b.dataset.id!);
+    renderStats();
+  }));
 }
 
 boot().catch((e) => {

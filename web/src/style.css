@@ -325,3 +325,26 @@ details summary { cursor: pointer; color: var(--accent); font-size: 18px; }
   .stamp-main { font-size: 26px; }
   .answers { columns: 1; }
 }
+
+/* Stats and earned miners */
+.section small { font-size: 10px; letter-spacing: 1px; margin-left: 8px; opacity: 0.7; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.stat { background: rgba(20, 16, 12, 0.85); border: 2px solid var(--line); padding: 10px 6px; text-align: center; }
+.stat-v { font-size: 22px; color: #fff; }
+.stat-v small { font-size: 11px; color: var(--muted); }
+.stat-l { font-size: 10px; letter-spacing: 1px; color: var(--muted); margin-top: 4px; text-transform: uppercase; }
+.hint { font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+.hint b { color: #fff; }
+.skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 40px; }
+.skin { background: rgba(20, 16, 12, 0.85); border: 2px solid var(--line); color: inherit; font: inherit; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.skin img { width: 64px; height: 64px; image-rendering: pixelated; }
+.skin:hover:not(.locked) { border-color: #f2c230; }
+.skin.on { border-color: #f2c230; box-shadow: 0 0 0 2px rgba(242, 194, 48, 0.25) inset; }
+.skin.locked { cursor: default; opacity: 0.6; }
+.skin-name { font-size: 11px; color: #fff; }
+.skin-req { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.skin.on .skin-req { color: #f2c230; }
+@media (max-width: 600px) {
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .stat-v { font-size: 18px; }
+}
