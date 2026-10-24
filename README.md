@@ -44,6 +44,8 @@ share = (first hits on this answer + 50 * starting guess) / (players + 50)
 | Cult Classic | 0.5 to 3% | 100 |
 | Lost Reel | under 0.5% | 200 |
 
+The scene fills the whole window. During play the question sits in a card at the bottom; at the end the scene dims and the score card scrolls over it.
+
 Each point digs 4 km (6,371 km is the center). On the way down you pass through topsoil full of lost film reels, limestone caverns, a fossil bed, crystal geodes, magma chambers, the diamond depths, a molten iron sea and the inner core. In dev, run `blockbustPeek(1500)` in the browser console to jump to any depth.
 
 ### Jev

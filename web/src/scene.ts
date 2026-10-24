@@ -5,8 +5,8 @@
 // a fossil bed, crystal geodes, magma chambers, the diamond depths, a molten iron sea, and the
 // white-hot inner core.
 
-export const W = 320;
-export const H = 180;
+/** The world is wider than most screens; the camera shows the middle of it, centred on the shaft. */
+const WORLD_W = 800;
 export const CORE_KM = 6371;
 
 type RGB = [number, number, number];
@@ -81,9 +81,8 @@ function biomeForPx(x: number, wy: number): Biome {
   return biomeAt(pxToKm(wy + jitter));
 }
 
-const SHAFT_X = 160;
+const SHAFT_X = WORLD_W / 2;
 const SHAFT_HALF = 7;
-const MINER_SCREEN_Y = 112;
 const PX_BOTTOM = PX[PX.length - 1];
 
 // ---------- sprites: one character per pixel, '.' is transparent ----------
@@ -175,11 +174,10 @@ interface Glow {
 }
 
 function sideX(i: number, rx: number): number {
-  // Keep chambers clear of the shaft: left or right of it.
-  const left = hash(i, 11) < 0.5;
+  // Keep chambers clear of the shaft: alternate left and right of it.
+  const left = i % 2 === 0;
   const room = SHAFT_X - SHAFT_HALF - 14 - rx * 2;
-  const off = 8 + rx + Math.floor(hash(i, 12) * Math.max(1, room));
-  return left ? off : W - off;
+  return left ? SHAFT_X - SHAFT_HALF - 14 - rx - Math.floor(hash(i, 12) * Math.max(1, room)) : SHAFT_X + SHAFT_HALF + 14 + rx + Math.floor(hash(i, 12) * Math.max(1, room));
 }
 
 function buildWorld() {
@@ -190,19 +188,19 @@ function buildWorld() {
   const bats: { x: number; y: number; range: number; phase: number }[] = [];
 
   // Topsoil: film reels, VHS tapes, worms.
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 64; i++) {
     const y = 14 + Math.floor(hash(i, 1) * (PX[1] - 26));
-    let x = 6 + Math.floor(hash(i, 2) * (W - 16));
-    if (Math.abs(x - SHAFT_X) < 20) x = (x + 80) % (W - 16);
+    let x = 6 + Math.floor(hash(i, 2) * (WORLD_W - 16));
+    if (Math.abs(x - SHAFT_X) < 20) x = (x + 80) % (WORLD_W - 16);
     const r = hash(i, 3);
     sprites.push({ rows: r < 0.45 ? REEL : r < 0.8 ? VHS : WORM, x, y });
   }
 
   // Limestone caverns: big chambers with stalactites, mushrooms and bats.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 12; i++) {
     const rx = 26 + Math.floor(hash(i, 21) * 30);
     const ry = 16 + Math.floor(hash(i, 22) * 14);
-    const cy = PX[1] + 40 + i * 58 + Math.floor(hash(i, 23) * 16);
+    const cy = PX[1] + 40 + (i >> 1) * 58 + Math.floor(hash(i, 23) * 30);
     const cx = sideX(i + 100, rx);
     chambers.push({ kind: 'cave', cx, cy, rx, ry });
     for (let m = 0; m < 4; m++) {
@@ -214,22 +212,23 @@ function buildWorld() {
   }
 
   // Fossil bed: a big skeleton, ammonites, fish, and more lost film.
-  sprites.push({ rows: DINO, x: 12, y: PX[2] + 60, size: 2 });
-  for (let i = 0; i < 16; i++) {
+  sprites.push({ rows: DINO, x: SHAFT_X - 150, y: PX[2] + 60, size: 2 });
+  sprites.push({ rows: DINO, x: SHAFT_X + 200, y: PX[2] + 140, size: 2 });
+  for (let i = 0; i < 40; i++) {
     const y = PX[2] + 10 + Math.floor(hash(i, 51) * (PX[3] - PX[2] - 24));
-    let x = 6 + Math.floor(hash(i, 52) * (W - 20));
-    if (Math.abs(x - SHAFT_X) < 22) x = (x + 90) % (W - 20);
-    if (x < 80 && y > PX[2] + 50 && y < PX[2] + 100) continue;
+    let x = 6 + Math.floor(hash(i, 52) * (WORLD_W - 20));
+    if (Math.abs(x - SHAFT_X) < 22) x = (x + 90) % (WORLD_W - 20);
+    if ((x > SHAFT_X - 160 && x < SHAFT_X - 90 && y > PX[2] + 50 && y < PX[2] + 100) || (x > SHAFT_X + 190 && x < SHAFT_X + 260 && y > PX[2] + 130 && y < PX[2] + 180)) continue;
     const r = hash(i, 53);
     sprites.push({ rows: r < 0.4 ? AMMONITE : r < 0.75 ? FISH : REEL, x, y });
   }
 
   // Crystal geodes: hollow pockets lined with glowing crystals, plus clusters in the rock.
   const gemColors = ['#b07cff', '#5ad7ff', '#ff6fb5', '#62f59a'].map(hex);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 12; i++) {
     const rx = 22 + Math.floor(hash(i, 61) * 22);
     const ry = 14 + Math.floor(hash(i, 62) * 10);
-    const cy = PX[3] + 50 + i * 68 + Math.floor(hash(i, 63) * 14);
+    const cy = PX[3] + 50 + (i >> 1) * 68 + Math.floor(hash(i, 63) * 30);
     const cx = sideX(i + 200, rx);
     chambers.push({ kind: 'geode', cx, cy, rx, ry });
     const color = gemColors[i % gemColors.length];
@@ -240,30 +239,30 @@ function buildWorld() {
     }
     glows.push({ x: cx, y: cy + ry * 0.5, color, radius: rx + 18 });
   }
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 36; i++) {
     const y = PX[3] + 20 + Math.floor(hash(i, 71) * (PX[4] - PX[3] - 30));
-    let x = 10 + Math.floor(hash(i, 72) * (W - 20));
-    if (Math.abs(x - SHAFT_X) < 18) x = (x + 100) % (W - 20);
+    let x = 10 + Math.floor(hash(i, 72) * (WORLD_W - 20));
+    if (Math.abs(x - SHAFT_X) < 18) x = (x + 100) % (WORLD_W - 20);
     const color = gemColors[Math.floor(hash(i, 73) * gemColors.length)];
     for (let k = 0; k < 3; k++) crystals.push({ x: x + k * 3 - 3, y, h: 4 + Math.floor(hash(i, 74 + k) * 6), lean: (k - 1) * 0.35, color });
     glows.push({ x, y: y - 4, color, radius: 14 });
   }
 
   // Magma chambers: half-full of lava, with lava falls.
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const rx = 30 + Math.floor(hash(i, 81) * 26);
     const ry = 18 + Math.floor(hash(i, 82) * 10);
-    const cy = PX[4] + 50 + i * 74 + Math.floor(hash(i, 83) * 12);
+    const cy = PX[4] + 50 + (i >> 1) * 74 + Math.floor(hash(i, 83) * 30);
     const cx = sideX(i + 300, rx);
     chambers.push({ kind: 'magma', cx, cy, rx, ry });
     glows.push({ x: cx, y: cy + ry * 0.4, color: hex('#ff7a1a'), radius: rx + 30, flicker: 1 });
   }
 
   // Diamond depths.
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 100; i++) {
     const y = PX[5] + 10 + Math.floor(hash(i, 91) * (PX[6] - PX[5] - 20));
-    let x = 6 + Math.floor(hash(i, 92) * (W - 12));
-    if (Math.abs(x - SHAFT_X) < 14) x = (x + 60) % (W - 12);
+    let x = 6 + Math.floor(hash(i, 92) * (WORLD_W - 12));
+    if (Math.abs(x - SHAFT_X) < 14) x = (x + 60) % (WORLD_W - 12);
     sprites.push({ rows: DIAMOND, x, y, glow: { color: hex('#bff6ff'), radius: 10 } });
   }
 
@@ -309,7 +308,12 @@ export class Scene {
   private img: ImageData;
   private km = 0;
   private targetKm = 0;
-  private camY = -MINER_SCREEN_Y;
+  /** Logical (pre-scale) size; one logical pixel is `pixel` CSS pixels. */
+  W = 320;
+  H = 180;
+  private pixel = 3;
+  private offX = 0;
+  private camY = -100;
   private t = 0;
   private swing = 0;
   private shake = 0;
@@ -321,7 +325,9 @@ export class Scene {
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
     this.ctx.imageSmoothingEnabled = false;
-    this.img = this.ctx.createImageData(W, H);
+    this.img = this.ctx.createImageData(1, 1);
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
     let last = performance.now();
     const loop = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -331,6 +337,27 @@ export class Scene {
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  }
+
+  /** Fills the window with chunky pixels: about 220 logical pixels tall. */
+  resize() {
+    const cssW = Math.max(1, innerWidth);
+    const cssH = Math.max(1, innerHeight);
+    this.pixel = Math.max(2, Math.round(Math.min(cssH / 220, cssW / 180)));
+    this.W = Math.ceil(cssW / this.pixel);
+    this.H = Math.ceil(cssH / this.pixel);
+    this.canvas.width = this.W;
+    this.canvas.height = this.H;
+    this.canvas.style.width = `${this.W * this.pixel}px`;
+    this.canvas.style.height = `${this.H * this.pixel}px`;
+    this.ctx.imageSmoothingEnabled = false;
+    this.img = this.ctx.createImageData(this.W, this.H);
+    this.offX = SHAFT_X - Math.floor(this.W / 2);
+  }
+
+  /** Where the miner sits on screen: a bit above the middle, so the bottom panel doesn't cover him. */
+  private get minerY() {
+    return Math.round(this.H * 0.42);
   }
 
   get depthKm() {
@@ -344,7 +371,7 @@ export class Scene {
 
   setDepth(km: number) {
     this.targetKm = this.km = Math.min(CORE_KM, km);
-    this.camY = kmToPx(this.km) - MINER_SCREEN_Y;
+    this.camY = kmToPx(this.km) - this.minerY;
   }
 
   reset() {
@@ -391,14 +418,15 @@ export class Scene {
     this.swing = digging ? (this.t * 7) % 1 : Math.max(0, this.swing - dt * 3);
 
     // Ambient particles: drips in the caves, sparkles in the geodes, embers below.
+    const { W, H, offX } = this;
     const view = biomeAt(pxToKm(this.camY + H / 2));
     const spawn = (p: Particle) => this.particles.length < 260 && this.particles.push(p);
     if (view.id === 'caverns' && Math.random() < 0.15) {
-      spawn({ x: Math.random() * W, y: this.camY + Math.random() * H * 0.5, vx: 0, vy: 0, life: 1.2, color: '#9fd3ff' });
+      spawn({ x: offX + Math.random() * W, y: this.camY + Math.random() * H * 0.5, vx: 0, vy: 0, life: 1.2, color: '#9fd3ff' });
     } else if (view.id === 'geodes' && Math.random() < 0.3) {
-      spawn({ x: Math.random() * W, y: this.camY + Math.random() * H, vx: 0, vy: -4, life: 0.5, color: '#ffffff', glow: true });
+      spawn({ x: offX + Math.random() * W, y: this.camY + Math.random() * H, vx: 0, vy: -4, life: 0.5, color: '#ffffff', glow: true });
     } else if (['magma', 'diamonds', 'outer', 'inner'].includes(view.id) && Math.random() < 0.35) {
-      spawn({ x: Math.random() * W, y: this.camY + H + 4, vx: (Math.random() - 0.5) * 6, vy: -20 - Math.random() * 25, life: 3, color: view.id === 'inner' ? '#ffffff' : '#ff9a3d', glow: true });
+      spawn({ x: offX + Math.random() * W, y: this.camY + H + 4, vx: (Math.random() - 0.5) * 6, vy: -20 - Math.random() * 25, life: 3, color: view.id === 'inner' ? '#ffffff' : '#ff9a3d', glow: true });
     }
     for (const p of this.particles) {
       p.x += p.vx * dt;
@@ -407,13 +435,13 @@ export class Scene {
       p.life -= dt;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
-    const targetCam = kmToPx(this.km) - MINER_SCREEN_Y;
+    const targetCam = kmToPx(this.km) - this.minerY;
     this.camY += (targetCam - this.camY) * Math.min(1, dt * 6);
     this.shake = Math.max(0, this.shake - dt);
   }
 
   private draw() {
-    const { ctx, t } = this;
+    const { ctx, t, W, H, offX } = this;
     const data = this.img.data;
     const camY = Math.round(this.camY);
     const floor = Math.round(kmToPx(this.km));
@@ -448,24 +476,25 @@ export class Scene {
     for (let sy = 0; sy < H; sy++) {
       const wy = camY + sy;
       for (let sx = 0; sx < W; sx++) {
+        const wx = sx + offX;
         let c: RGB;
         let light: RGB = [1, 1, 1];
         if (wy < 0) {
-          c = sky(sx, wy, t);
+          c = sky(wx, wy, t);
         } else {
-          const b = wy >= PX_BOTTOM ? BIOMES[BIOMES.length - 1] : biomeForPx(sx, wy);
-          c = rock(b, sx, wy, t);
+          const b = wy >= PX_BOTTOM ? BIOMES[BIOMES.length - 1] : biomeForPx(wx, wy);
+          c = rock(b, wx, wy, t);
           // Chambers carve open space out of the rock.
           for (const ch of onScreen) {
-            const span = chamberSpan(ch, sx);
+            const span = chamberSpan(ch, wx);
             if (!span || wy < span[0] || wy > span[1]) continue;
-            const air = chamberPixel(ch, sx, wy, span, t);
+            const air = chamberPixel(ch, wx, wy, span, t);
             if (air) c = air;
             break;
           }
-          const inShaft = Math.abs(sx - SHAFT_X) <= SHAFT_HALF && wy <= floor;
+          const inShaft = Math.abs(wx - SHAFT_X) <= SHAFT_HALF && wy <= floor;
           if (inShaft) {
-            const edge = Math.abs(sx - SHAFT_X) === SHAFT_HALF;
+            const edge = Math.abs(wx - SHAFT_X) === SHAFT_HALF;
             c = b.id === 'outer' || b.id === 'inner' ? mix(c, [60, 16, 0], 0.4) : scale(c, 0.32);
             if (edge) c = scale(c, 1.6);
             // Timber supports near the top, iron rings further down.
@@ -475,7 +504,7 @@ export class Scene {
             }
           }
           if (wy < 3) c = wy === 0 ? [90, 170, 70] : [62, 128, 52];
-          if (b.id !== 'outer' && b.id !== 'inner') light = lightAt(sx, wy, b);
+          if (b.id !== 'outer' && b.id !== 'inner') light = lightAt(wx, wy, b);
         }
         const o = (sy * W + sx) * 4;
         data[o] = Math.min(255, c[0] * light[0]);
@@ -487,9 +516,10 @@ export class Scene {
 
     const put = (x: number, wy: number, c: RGB, lit = true) => {
       const sy = wy - camY;
-      if (x < 0 || x >= W || sy < 0 || sy >= H) return;
+      const sx = x - offX;
+      if (sx < 0 || sx >= W || sy < 0 || sy >= H) return;
       const l = lit && wy >= 0 ? lightAt(x, wy, biomeAt(pxToKm(wy))) : [1, 1, 1];
-      const o = (sy * W + x) * 4;
+      const o = (sy * W + sx) * 4;
       data[o] = Math.min(255, c[0] * l[0]);
       data[o + 1] = Math.min(255, c[1] * l[1]);
       data[o + 2] = Math.min(255, c[2] * l[2]);
@@ -544,7 +574,7 @@ export class Scene {
 
     const jx = this.shake > 0 ? Math.round((Math.random() - 0.5) * 3) : 0;
     const my = floor - camY - MINER.length;
-    const mx = SHAFT_X - 5 + jx;
+    const mx = SHAFT_X - offX - 5 + jx;
     drawSprite(ctx, MINER, MINER_PAL, mx, my);
     // Pickaxe: swings from over the shoulder down to the floor.
     const a = -2.3 + Math.sin(this.swing * Math.PI) * 2.6;
@@ -558,7 +588,7 @@ export class Scene {
     for (const p of this.particles) {
       ctx.fillStyle = p.color;
       ctx.globalAlpha = Math.min(1, p.life * 2);
-      ctx.fillRect(Math.round(p.x), Math.round(p.y - camY), 1, 1);
+      ctx.fillRect(Math.round(p.x - offX), Math.round(p.y - camY), 1, 1);
     }
     ctx.globalAlpha = 1;
   }
@@ -659,14 +689,14 @@ function sky(x: number, wy: number, t: number): RGB {
   const top: RGB = [62, 120, 196];
   const horizon: RGB = [170, 214, 240];
   let c = mix(top, horizon, Math.min(1, (wy + 140) / 140));
-  if (Math.hypot(x - 262, wy + 92) < 9) c = [255, 233, 140];
+  if (Math.hypot(x - SHAFT_X - 102, wy + 92) < 9) c = [255, 233, 140];
   // Puffy clouds: a few overlapping circles on a flat base.
-  const cx = (x + t * 4) % 400;
+  const cx = (x + t * 4) % WORLD_W;
   const cloud = (ox: number, oy: number, w: number) =>
     wy <= oy + 3 &&
     (Math.hypot(cx - ox, wy - oy) < w * 0.32 || Math.hypot(cx - ox - w * 0.4, wy - oy - 1) < w * 0.24 ||
       Math.hypot(cx - ox + w * 0.42, wy - oy - 1) < w * 0.22 || (Math.abs(cx - ox) < w * 0.75 && wy > oy - 1));
-  if (cloud(60, -100, 22) || cloud(190, -78, 16) || cloud(330, -110, 26)) c = [244, 248, 252];
+  if (cloud(60, -100, 22) || cloud(190, -78, 16) || cloud(330, -110, 26) || cloud(520, -95, 20) || cloud(690, -84, 24)) c = [244, 248, 252];
   const hill = -6 - Math.round(Math.sin(x * 0.03) * 5 + Math.sin(x * 0.011 + 1) * 7);
   if (wy > hill) c = [76, 140, 74];
   return c;

@@ -78,6 +78,7 @@ async function boot() {
 }
 
 function showIntro() {
+  panel.className = 'panel';
   panel.innerHTML = `
     <div class="intro">
       <h1>Dig to the center of the Earth</h1>
@@ -106,6 +107,7 @@ async function startQuestion(index: number) {
 
 function renderQuestion(q: StartQuestionResponse) {
   const noun = q.answerType === 'movie' ? 'film' : 'person';
+  panel.className = 'panel';
   panel.innerHTML = `
     <div class="qhead"><span>${q.index + 1} / ${today.questionCount}</span><span class="cat">${esc(q.category)}</span></div>
     <h2 class="prompt">${esc(q.text)}</h2>
@@ -266,7 +268,8 @@ async function showResults() {
   const maxCount = Math.max(...r.histogram.map((h) => h.count));
   const shareText = `BLOCKBUST #${r.number} ⛏️ ${km.toLocaleString()} km\n${emoji}\nReached ${reached}\n${location.origin}`;
 
-  panel.innerHTML = `
+  panel.className = 'panel results';
+  panel.innerHTML = `<div class="inner">
     <div class="card">
       <div class="card-top">
         <div>
@@ -296,7 +299,7 @@ async function showResults() {
           <ul class="answers">${q.topAnswers.map((a) => `<li><span class="dot" style="--c:${tierById(a.tier).color}"></span>${esc(a.label)} <small>${(a.share * 100).toFixed(1)}%</small></li>`).join('')}</ul>
         </details>
       </li>`;
-    }).join('')}</ol>`;
+    }).join('')}</ol></div>`;
 
   $('#share').onclick = async () => {
     try {

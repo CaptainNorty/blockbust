@@ -5,3 +5,4 @@ server/data/*.db
 server/data/*.db-*
 server/data/cache
 .DS_Store
+_to_delete
