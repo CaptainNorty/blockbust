@@ -24,11 +24,15 @@ function bigrams(s: string): Set<string> {
 /**
  * Searches the whole catalog (never just the answers), so suggestions reveal nothing.
  * Prefix and word-prefix matches first, with a typo-tolerant fallback.
+ *
+ * The browser only holds the most popular names. When those don't fill the list, `more()` asks the
+ * server, which searches everything.
  */
 export class Autocomplete {
   private rows: Row[];
+  private cache = new Map<string, Promise<CatalogRow[]>>();
 
-  constructor(rows: CatalogRow[]) {
+  constructor(rows: CatalogRow[], private complete = true, private remote?: (q: string) => Promise<CatalogRow[]>) {
     this.rows = rows.map(([id, label, detail, pop]) => {
       const norm = normalize(label);
       return { id, label, detail, pop, norm, words: norm.split(' ') };
@@ -62,5 +66,20 @@ export class Autocomplete {
     // Popularity is on a log scale so a famous match beats a slightly better obscure one.
     scored.sort((a, b) => b.score - a.score || b.row.pop - a.row.pop);
     return scored.slice(0, limit).map(({ row }) => ({ id: row.id, label: row.label, detail: row.detail }));
+  }
+
+  /** Local results topped up from the server's full catalog, or null when the local list was enough. */
+  async more(query: string, local: Suggestion[], limit = 7): Promise<Suggestion[] | null> {
+    const q = normalize(query);
+    if (this.complete || !this.remote || q.length < 3 || local.length >= limit) return null;
+    let p = this.cache.get(q);
+    if (!p) {
+      p = this.remote(query).catch(() => []);
+      this.cache.set(q, p);
+    }
+    const rows = await p;
+    const seen = new Set(local.map((s) => s.id));
+    const extra = rows.filter(([id]) => !seen.has(id)).map(([id, label, detail]) => ({ id, label, detail }));
+    return extra.length ? [...local, ...extra].slice(0, limit) : null;
   }
 }

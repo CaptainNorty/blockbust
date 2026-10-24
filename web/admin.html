@@ -28,12 +28,84 @@
       .scroll { max-height: 260px; overflow: auto; }
       .note { color: #777; font-size: 12px; }
       input, select { font: inherit; padding: 3px 6px; }
+      nav { display: flex; gap: 4px; margin-left: 20px; }
+      nav a { padding: 4px 10px; border-radius: 4px; text-decoration: none; }
+      nav a.on { background: #f2c230; color: #221b16; }
+      .tab[hidden] { display: none !important; }
+      #jobsTab { padding: 16px 20px; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+      [hidden] { display: none !important; }
+      .card .row input { min-width: 0; }
+      .card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+      .card label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
+      .card label input[type='number'], .card label input[type='date'] { width: 120px; }
+      .card .row { display: flex; gap: 6px; }
+      .card .row input { flex: 1; }
+      .results div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0ece6; }
+      .results small { color: #777; display: block; }
+      .badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #e7f4e4; color: #2c6e2c; white-space: nowrap; }
+      .job { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+      .job-head { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+      .job-head b { flex: 1; }
+      .status { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 10px; background: #eee; }
+      .status.running { background: #f2c230; } .status.queued { background: #e5e9f2; }
+      .status.done { background: #d6f0d2; } .status.failed, .status.interrupted { background: #f6d2cc; }
+      .bar { height: 6px; background: #eee; border-radius: 3px; margin: 8px 0 4px; overflow: hidden; }
+      .bar > div { height: 100%; background: #f2c230; transition: width 0.4s; }
+      .job .line { color: #555; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .job pre { background: #1d1914; color: #eadfcc; font-size: 12px; padding: 10px; border-radius: 4px; max-height: 320px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; }
       #toast { position: fixed; bottom: 16px; right: 16px; background: #222; color: #fff; padding: 8px 14px; border-radius: 6px; display: none; }
     </style>
   </head>
   <body>
-    <header><b>BLOCKBUST ADMIN</b><a href="/">Play</a><span id="source"></span></header>
-    <main>
+    <header><b>BLOCKBUST ADMIN</b><nav><a href="#puzzles" id="navPuzzles">Puzzles</a><a href="#data" id="navData">Data &amp; jobs</a></nav><a href="/">Play</a><span id="source"></span></header>
+    <section class="tab" id="jobsTab" hidden>
+      <div>
+        <div class="card" id="catalogCard"></div>
+        <div class="card">
+          <h2>Sync from TMDB</h2>
+          <div class="note">Pulls the most-voted films with their cast, directors, studios and series, then joins IMDb ratings. Films already synced are skipped unless you tick "re-fetch".</div>
+          <label>Films <input type="number" id="syncMovies" value="20000" min="100" max="100000" step="1000" /></label>
+          <label>Min votes (over 10k films) <input type="number" id="syncMinVotes" value="25" min="1" /></label>
+          <label>Re-fetch films already synced <input type="checkbox" id="syncRefresh" /></label>
+          <label>Join IMDb ratings <input type="checkbox" id="syncImdb" checked /></label>
+          <div class="note" id="syncEta"></div>
+          <button class="primary" id="syncGo">Start sync</button>
+          <button id="imdbGo">Only refresh IMDb ratings</button>
+        </div>
+        <div class="card">
+          <h2>Add a missing film or person</h2>
+          <div class="note">For correct answers the game didn't know. A person adds every film they acted in or directed.</div>
+          <div class="row" style="margin-top: 6px">
+            <select id="tType"><option value="movie">Film</option><option value="person">Person</option></select>
+            <input id="tQuery" placeholder="Search TMDB" />
+            <button id="tGo">Search</button>
+          </div>
+          <label id="tVotesRow" hidden>Only films with at least <input type="number" id="tVotes" value="10" min="0" /> votes</label>
+          <div class="results" id="tResults"></div>
+        </div>
+        <div class="card">
+          <h2>Rebuild puzzles</h2>
+          <div class="note">Regenerates questions and answer lists from the current catalog. Run it after a sync.</div>
+          <label>From <input type="date" id="pFrom" /></label>
+          <label>Days <input type="number" id="pDays" value="7" min="1" max="60" /></label>
+          <label>Also replace days people already played <input type="checkbox" id="pPlayed" /></label>
+          <button class="primary" id="pGo">Rebuild</button>
+        </div>
+        <div class="card">
+          <h2>Label answers with Jev</h2>
+          <div class="note">Asks Jev how obscure each answer is and blends that into the starting rarity.</div>
+          <label>From <input type="date" id="jFrom" /></label>
+          <label>Days <input type="number" id="jDays" value="7" min="1" max="60" /></label>
+          <label>Skip questions already labeled <input type="checkbox" id="jNew" checked /></label>
+          <button class="primary" id="jGo">Start labeling</button>
+        </div>
+      </div>
+      <div>
+        <h2>Jobs</h2>
+        <div id="jobs"></div>
+      </div>
+    </section>
+    <main class="tab" id="puzzlesTab">
       <aside>
         <section id="stats"></section>
         <section>
