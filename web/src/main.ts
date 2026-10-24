@@ -74,7 +74,7 @@ async function boot() {
   scene.onDepth?.(saved.points * KM_PER_POINT, layerAt(saved.points * KM_PER_POINT).name);
   // Load both catalogs in the background; questions need one or the other.
   for (const t of ['movie', 'person'] as EntityType[]) {
-    api.catalog(t).then((rows) => (catalogs[t] = new Autocomplete(rows)));
+    api.catalog(t).then(({ rows, complete }) => (catalogs[t] = new Autocomplete(rows, complete, (q) => api.suggest(t, q))));
   }
   if (saved.finished) return showResults();
   if (saved.next > 0) return startQuestion(saved.next);
@@ -139,11 +139,22 @@ function renderQuestion(q: StartQuestionResponse) {
       .map((s, i) => `<li class="${i === active ? 'active' : ''}" data-i="${i}">${esc(s.label)} <small>${esc(s.detail)}</small></li>`)
       .join('');
   };
+  let moreTimer = 0;
   input.oninput = () => {
     const ac = catalogs[q.answerType];
-    suggestions = ac ? ac.search(input.value) : [];
+    const typed = input.value;
+    suggestions = ac ? ac.search(typed) : [];
     active = suggestions.length ? 0 : -1;
     renderSuggest();
+    // Not enough popular matches: ask the server, which knows the whole catalog.
+    clearTimeout(moreTimer);
+    moreTimer = window.setTimeout(async () => {
+      const more = await ac?.more(typed, suggestions);
+      if (!more || input.value !== typed) return;
+      suggestions = more;
+      if (active < 0) active = 0;
+      renderSuggest();
+    }, 120);
   };
   list.onmousedown = (e) => {
     const li = (e.target as HTMLElement).closest('li');

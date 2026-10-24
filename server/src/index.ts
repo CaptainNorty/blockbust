@@ -1,10 +1,14 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { compress } from 'hono/compress';
 import { randomUUID } from 'node:crypto';
 import {
   normalize, tierById, type EntityType, type FinishResponse, type GuessResponse, type QuestionSummary, type TierId,
 } from '@blockbust/shared';
-import { catalog, entryLabel, invalidateCatalog, resolveText } from './catalog.ts';
+import './admin-jobs.ts';
+import { catalog, entryLabel, invalidateCatalog, resolveText, suggest } from './catalog.ts';
+import { cancel, enqueue, getJob, initJobs, jobKinds, listJobs } from './jobs.ts';
+import { searchTmdb } from './tmdb-sync.ts';
 import { db, getMeta } from './db.ts';
 import { classifyPrompt, jevEnabled } from './jev.ts';
 import { CATEGORIES, generateDay, generateUpcoming, swapPrompt, today } from './puzzles.ts';
@@ -14,7 +18,12 @@ const SECONDS = Number(process.env.QUESTION_SECONDS ?? 20);
 const GRACE_MS = 1500;
 const PORT = Number(process.env.PORT ?? 8787);
 
+/** The browser gets this many of the most popular names for instant autocomplete; the rest come from /api/suggest. */
+const CLIENT_CATALOG = { movie: Number(process.env.CLIENT_MOVIES ?? 25_000), person: Number(process.env.CLIENT_PEOPLE ?? 30_000) };
+
+initJobs();
 const app = new Hono();
+app.use('/api/catalog/*', compress());
 
 app.onError((err, c) => {
   console.error(err);
@@ -61,7 +70,14 @@ app.post('/api/session', (c) => {
 app.get('/api/catalog/:type', (c) => {
   const type = c.req.param('type') as EntityType;
   if (type !== 'movie' && type !== 'person') return c.json({ error: 'bad type' }, 400);
-  return c.json(catalog(type).rows);
+  const rows = catalog(type).rows;
+  return c.json({ rows: rows.slice(0, CLIENT_CATALOG[type]), complete: rows.length <= CLIENT_CATALOG[type] });
+});
+
+app.get('/api/suggest', (c) => {
+  const type = c.req.query('type') as EntityType;
+  if (type !== 'movie' && type !== 'person') return c.json({ error: 'bad type' }, 400);
+  return c.json(suggest(type, c.req.query('q') ?? ''));
 });
 
 app.post('/api/question/start', async (c) => {
@@ -224,6 +240,26 @@ app.post('/api/admin/alias', async (c) => {
   db.prepare('INSERT OR IGNORE INTO aliases (entity_type, entity_id, alias) VALUES (?, ?, ?)').run(type, entityId, normalize(alias));
   invalidateCatalog();
   return c.json({ ok: true });
+});
+
+// ---------- admin: jobs ----------
+
+app.get('/api/admin/jobs', (c) => c.json({ kinds: jobKinds(), jobs: listJobs() }));
+app.get('/api/admin/jobs/:id', (c) => {
+  const job = getJob(Number(c.req.param('id')));
+  return job ? c.json(job) : c.json({ error: 'No such job' }, 404);
+});
+app.post('/api/admin/jobs', async (c) => {
+  const { kind, params } = await c.req.json();
+  return c.json({ id: enqueue(kind, params ?? {}) });
+});
+app.post('/api/admin/jobs/:id/cancel', (c) => {
+  cancel(Number(c.req.param('id')));
+  return c.json({ ok: true });
+});
+app.get('/api/admin/tmdb/search', async (c) => {
+  const type = c.req.query('type') === 'person' ? 'person' : 'movie';
+  return c.json(await searchTmdb(type, c.req.query('q') ?? ''));
 });
 
 serve({ fetch: app.fetch, port: PORT }, () => {

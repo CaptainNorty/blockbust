@@ -16,15 +16,17 @@ npm run dev       # game at http://localhost:5173, admin at http://localhost:517
 
 ## Real data from TMDB
 
-1. Copy `.env.example` to `.env` and paste your TMDB key after `TMDB_API_KEY=`. Either the short API Key or the long Read Access Token works.
-2. Run `npm run sync`. This pulls the 6,000 most-voted films with their cast, directors, studios and series, then joins IMDb ratings from IMDb's free dataset. Expect about 5 to 10 minutes. The first real sync removes the demo catalog.
-   - `npm run sync -- --movies 10000` covers more films (rarer answers become possible).
-   - Re-running only fetches films it doesn't have yet; add `--refresh` to re-fetch everything.
-3. Run `npm run puzzles` to build any missing days through 6 days from now, or use the admin page.
+1. Copy `.env.example` to `.env` and paste your TMDB key after `TMDB_API_KEY=`. Either the short API Key or the long Read Access Token works. Restart `npm run dev` after editing `.env`.
+2. Open `/admin.html`, go to **Data & jobs**, and press **Start sync**. It pulls the most-voted films (20,000 by default) with their cast, directors, studios and series, then joins IMDb ratings from IMDb's free dataset. Progress and a live log show on the right, and you can cancel at any time (anything already fetched is kept). Expect roughly 10 minutes for 20,000 films. The first real sync removes the demo catalog.
+   - TMDB only pages through 10,000 results per query, so syncs above 10,000 films go year by year and keep films with at least "min votes" votes.
+   - Re-running only fetches films it doesn't have yet; tick "re-fetch" to refresh everything.
+3. Press **Rebuild** under "Rebuild puzzles" so upcoming days use the new catalog. Days people already played are kept unless you tick the box.
+
+The same page can add a single missing film or every film of one person (handy for "that's right, but the game didn't know it"), refresh IMDb ratings, and label answers with Jev. Each is a job with its own progress and log. `npm run sync` (`--movies`, `--min-votes`, `--refresh`, `--no-imdb`) and `npm run puzzles` still work from the terminal.
 
 ## How a guess works
 
-- The browser downloads the full catalog of titles and names for autocomplete. It never gets the answer lists.
+- The browser downloads the 25,000 most-voted films and 30,000 best-known people for instant autocomplete (about 400 KB gzipped). When those don't fill the list, it asks `GET /api/suggest`, which searches the whole catalog on the server in a few milliseconds. Neither ever sees the answer lists.
 - `POST /api/guess` turns the text (or the picked suggestion) into one film or person, checks the frozen answer set for that prompt, enforces the timer, and returns only `hit` with a tier, `miss`, `unknown`, or `ambiguous` with a few candidates.
 - Text matching: normalization (case, accents, "the", "&", Roman numerals), an alias table, a unique-prefix match, then trigram + edit-distance for typos. It never looks at the answers, so it can't leak them.
 

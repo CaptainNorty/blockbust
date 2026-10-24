@@ -29,16 +29,21 @@ function trigrams(s: string): string[] {
 }
 
 function build(type: EntityType): Index {
-  const list: Entry[] =
-    type === 'movie'
-      ? (db.prepare("SELECT id, title AS label, coalesce(year, '') AS detail, vote_count AS pop FROM movies").all() as unknown as Entry[])
-      : (db.prepare(`
-          SELECT p.id, p.name AS label, p.popularity AS pop,
-            coalesce((SELECT m.title FROM credits c JOIN movies m ON m.id = c.movie_id
-                      WHERE c.person_id = p.id ORDER BY m.vote_count DESC LIMIT 1), '') AS detail
-          FROM people p
-          WHERE EXISTS (SELECT 1 FROM credits c WHERE c.person_id = p.id AND (c.kind = 'director' OR c.billing <= 15))
-        `).all() as unknown as Entry[]);
+  let list: Entry[];
+  if (type === 'movie') {
+    list = db.prepare("SELECT id, title AS label, coalesce(year, '') AS detail, vote_count AS pop FROM movies").all() as unknown as Entry[];
+  } else {
+    // Anyone who directed or was billed in the top 15, labelled with their best-known film.
+    const known = new Map(
+      (db.prepare(`SELECT person_id AS id, title FROM (
+          SELECT c.person_id, m.title, row_number() OVER (PARTITION BY c.person_id ORDER BY m.vote_count DESC) AS rn
+          FROM credits c JOIN movies m ON m.id = c.movie_id WHERE c.kind = 'director' OR c.billing <= 15
+        ) WHERE rn = 1`).all() as { id: number; title: string }[]).map((r) => [r.id, r.title]),
+    );
+    list = (db.prepare('SELECT id, name AS label, popularity AS pop FROM people').all() as unknown as Omit<Entry, 'detail'>[])
+      .filter((p) => known.has(p.id))
+      .map((p) => ({ ...p, detail: known.get(p.id)! }));
+  }
   const entries = new Map(list.map((e) => [e.id, { ...e, detail: String(e.detail) }]));
   const exact = new Map<string, number[]>();
   const keys: Index['keys'] = [];
@@ -73,6 +78,42 @@ export function catalog(type: EntityType): Index {
     indexes.set(type, idx);
   }
   return idx;
+}
+
+/**
+ * Autocomplete over the whole catalog, for queries the browser's popular-only list can't answer.
+ * Same ranking as the browser: exact, prefix, word-prefix, substring, then a typo-tolerant pass.
+ */
+export function suggest(type: EntityType, text: string, limit = 7): CatalogRow[] {
+  const idx = catalog(type);
+  const q = normalize(text);
+  if (q.length < 2) return [];
+  const qWords = q.split(' ');
+  const best = new Map<number, number>();
+  const bump = (id: number, score: number) => {
+    if ((best.get(id) ?? 0) < score) best.set(id, score);
+  };
+  for (const k of idx.keys) {
+    if (k.norm === q) bump(k.id, 4);
+    else if (k.norm.startsWith(q)) bump(k.id, 3);
+    else if (k.norm.includes(qWords[0])) {
+      const words = k.norm.split(' ');
+      if (qWords.every((w) => words.some((rw) => rw.startsWith(w)))) bump(k.id, 2);
+      else if (q.length >= 3 && k.norm.includes(q)) bump(k.id, 1);
+    }
+  }
+  if (best.size < limit && q.length >= 4) {
+    const r = resolveText(type, text);
+    if (r.kind === 'match') bump(r.id, 0.5);
+    if (r.kind === 'ambiguous') r.candidates.forEach((c) => bump(c.id, 0.5));
+  }
+  return [...best.entries()]
+    .sort((a, b) => b[1] - a[1] || idx.entries.get(b[0])!.pop - idx.entries.get(a[0])!.pop)
+    .slice(0, limit)
+    .map(([id]) => {
+      const e = idx.entries.get(id)!;
+      return [e.id, e.label, e.detail, Math.round(e.pop * 10) / 10];
+    });
 }
 
 export function invalidateCatalog() {

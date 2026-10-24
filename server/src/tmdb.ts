@@ -1,4 +1,4 @@
-const BASE = 'https://api.themoviedb.org/3';
+const BASE = process.env.TMDB_API_BASE ?? 'https://api.themoviedb.org/3';
 
 function authFor(key: string): { headers: Record<string, string>; query: string } {
   // The long "API Read Access Token" is a JWT and goes in a header; the short "API Key" goes in the query string.
@@ -28,7 +28,17 @@ export function tmdbClient(key: string) {
 export interface DiscoverPage {
   page: number;
   total_pages: number;
-  results: { id: number }[];
+  total_results: number;
+  results: { id: number; title: string; release_date?: string; vote_count: number; popularity: number }[];
+}
+
+export interface PersonSearchPage {
+  results: { id: number; name: string; known_for_department: string; popularity: number; known_for?: { title?: string; name?: string }[] }[];
+}
+
+export interface PersonCredits {
+  cast: { id: number; title: string; release_date?: string; vote_count: number; order?: number }[];
+  crew: { id: number; title: string; release_date?: string; vote_count: number; job: string }[];
 }
 
 export interface MovieDetail {
