@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blockbust</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header class="topbar">
+        <div class="logo">BLOCKBUST</div>
+        <div class="dig-no" id="digNo">DIG #—</div>
+      </header>
+      <section class="stage">
+        <canvas id="scene" width="320" height="180"></canvas>
+        <div class="hud">
+          <div class="depth"><span id="depthKm">0</span><small> km</small></div>
+          <div class="layer" id="layerName">Surface</div>
+        </div>
+        <div class="stamp" id="stamp"></div>
+      </section>
+      <section class="panel" id="panel"></section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blockbust admin</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 0; background: #f6f3ef; color: #222; }
+      header { background: #221b16; color: #f2c230; padding: 12px 20px; display: flex; gap: 20px; align-items: baseline; }
+      header b { font-size: 18px; letter-spacing: 2px; }
+      header a { color: #f3e9dc; }
+      main { padding: 16px 20px; display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+      aside section, .prompt { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+      h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #777; margin: 0 0 8px; }
+      button { font: inherit; padding: 4px 10px; border: 1px solid #bbb; background: #fff; border-radius: 4px; cursor: pointer; }
+      button.primary { background: #f2c230; border-color: #c99a14; }
+      button:disabled { opacity: 0.5; }
+      .days a { display: flex; justify-content: space-between; padding: 3px 6px; color: inherit; text-decoration: none; border-radius: 4px; }
+      .days a.on { background: #f2c230; }
+      .prompt header { all: unset; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .prompt h3 { margin: 0; font-size: 16px; flex: 1; }
+      .meta { color: #777; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+      th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid #eee; }
+      th { color: #777; font-weight: 500; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .tier { font-weight: 600; }
+      .scroll { max-height: 260px; overflow: auto; }
+      .note { color: #777; font-size: 12px; }
+      input, select { font: inherit; padding: 3px 6px; }
+      #toast { position: fixed; bottom: 16px; right: 16px; background: #222; color: #fff; padding: 8px 14px; border-radius: 6px; display: none; }
+    </style>
+  </head>
+  <body>
+    <header><b>BLOCKBUST ADMIN</b><a href="/">Play</a><span id="source"></span></header>
+    <main>
+      <aside>
+        <section id="stats"></section>
+        <section>
+          <h2>Puzzles</h2>
+          <button class="primary" id="gen">Build next 7 days</button>
+          <div class="days" id="days" style="margin-top: 8px"></div>
+        </section>
+        <section>
+          <h2>Unknown guesses</h2>
+          <div class="note">Fair guesses the matcher missed. Add an alias for them below.</div>
+          <div id="unknown" class="scroll"></div>
+          <h2 style="margin-top: 10px">Add alias</h2>
+          <select id="aType"><option value="movie">Film</option><option value="person">Person</option></select>
+          <input id="aSearch" placeholder="Find the real title/name" style="width: 100%; margin: 4px 0" />
+          <select id="aPick" style="width: 100%"></select>
+          <input id="aAlias" placeholder="Alias, e.g. lotr" style="width: 100%; margin: 4px 0" />
+          <button id="aAdd">Add alias</button>
+        </section>
+      </aside>
+      <div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+          <h2 style="margin: 0" id="dayTitle"></h2>
+          <button id="rebuild">Rebuild this day</button>
+          <button id="reset">Clear plays for this day</button>
+          <a id="playLink" href="#">Play this day</a>
+        </div>
+        <div id="prompts"></div>
+      </div>
+    </main>
+    <div id="toast"></div>
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>

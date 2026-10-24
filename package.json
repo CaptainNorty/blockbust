@@ -1,0 +1,18 @@
+{
+  "name": "blockbust",
+  "private": true,
+  "type": "module",
+  "workspaces": ["shared", "server", "web"],
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c cyan,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "sync": "npm run sync -w server --",
+    "demo": "npm run demo -w server",
+    "puzzles": "npm run puzzles -w server --",
+    "typecheck": "tsc -p server && tsc -p web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.6.3"
+  }
+}

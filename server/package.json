@@ -1,0 +1,20 @@
+{
+  "name": "@blockbust/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
+    "sync": "tsx --env-file-if-exists=../.env src/sync.ts",
+    "demo": "tsx --env-file-if-exists=../.env src/demo.ts",
+    "puzzles": "tsx --env-file-if-exists=../.env src/puzzles-cli.ts"
+  },
+  "dependencies": {
+    "@blockbust/shared": "*",
+    "@hono/node-server": "^1.14.0",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2"
+  }
+}
